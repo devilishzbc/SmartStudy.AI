@@ -124,11 +124,11 @@ class CourseResponse(CourseBase):
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
-    course_id: str
+    course_id: Optional[str] = None  # Optional - tasks can be created without a course
     due_date: datetime
     priority: TaskPriority = TaskPriority.MEDIUM
     difficulty: TaskDifficulty = TaskDifficulty.MEDIUM
-    estimated_minutes: int
+    estimated_minutes: int = 30  # Default 30 minutes
     tags: List[str] = []
 
 class TaskCreate(TaskBase):
@@ -152,7 +152,7 @@ class TaskResponse(TaskBase):
     id: str
     user_id: str
     status: TaskStatus
-    actual_minutes: int
+    actual_minutes: Optional[int] = None  # Optional - filled when task is completed
     dependencies: List[str] = []
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)

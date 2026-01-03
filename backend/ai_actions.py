@@ -271,10 +271,15 @@ async def action_create_task(db, user_id: str, params: dict) -> dict:
         'user_id': user_id,
         'title': params['title'],
         'description': params.get('description', ''),
+        'course_id': None,  # AI-created tasks don't belong to a course by default
         'status': 'pending',
         'priority': priority,
+        'difficulty': 'medium',
         'due_date': due_date,
         'estimated_minutes': params.get('estimated_minutes', 30),
+        'actual_minutes': None,
+        'tags': [],
+        'dependencies': [],
         'created_at': datetime.now(timezone.utc).isoformat()
     }
     
@@ -310,10 +315,15 @@ async def action_create_multiple_tasks(db, user_id: str, params: dict) -> dict:
             'user_id': user_id,
             'title': task_params['title'],
             'description': task_params.get('description', ''),
+            'course_id': None,
             'status': 'pending',
             'priority': task_params.get('priority', 'medium'),
+            'difficulty': 'medium',
             'due_date': due_date,
             'estimated_minutes': task_params.get('estimated_minutes', 30),
+            'actual_minutes': None,
+            'tags': [],
+            'dependencies': [],
             'created_at': datetime.now(timezone.utc).isoformat()
         }
         
@@ -499,10 +509,15 @@ async def action_create_study_plan(db, user_id: str, params: dict) -> dict:
             'user_id': user_id,
             'title': phase['name'],
             'description': f"Часть плана изучения: {topic}. Примерное время: {hours_per_day} часа.",
+            'course_id': None,
             'status': 'pending',
             'priority': phase['priority'],
+            'difficulty': 'medium',
             'due_date': (today + timedelta(days=phase['day_offset'])).isoformat(),
             'estimated_minutes': int(hours_per_day * 60),
+            'actual_minutes': None,
+            'tags': ['study-plan', topic.lower().replace(' ', '-')],
+            'dependencies': [],
             'created_at': datetime.now(timezone.utc).isoformat()
         }
         await db.tasks.insert_one(task)

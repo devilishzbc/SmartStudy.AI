@@ -29,6 +29,8 @@ export const TasksPage = () => {
   const { data: tasks, isLoading: tasksLoading } = useQuery({
     queryKey: ['tasks'],
     queryFn: () => api.getTasks(),
+    refetchOnWindowFocus: true,  // Автообновление при возврате на вкладку
+    staleTime: 5000,  // Данные считаются свежими 5 секунд
   });
 
   const { data: user } = useQuery({
