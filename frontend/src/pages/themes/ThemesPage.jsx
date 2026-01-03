@@ -22,7 +22,7 @@ export const ThemesPage = () => {
   const hasChanges = selectedTheme !== currentTheme;
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${themes[currentTheme].colors.background}`}>
+    <div className="min-h-screen">
       <PageHeader 
         title="Customize Your Theme" 
         subtitle="Choose a color scheme that inspires you"
@@ -67,7 +67,12 @@ export const ThemesPage = () => {
                   }}
                 >
                   {/* Theme Preview */}
-                  <div className={`h-48 bg-gradient-to-br ${theme.colors.background} p-6`}>
+                  <div 
+                    className="h-48 p-6"
+                    style={{ 
+                      background: `linear-gradient(to bottom right, ${theme.colors.gradientFrom}, ${theme.colors.gradientTo})` 
+                    }}
+                  >
                     <div className="flex flex-col gap-3">
                       <div className="w-full h-4 rounded" style={{ backgroundColor: theme.colors.primary }} />
                       <div className="w-3/4 h-4 rounded" style={{ backgroundColor: theme.colors.secondary }} />
@@ -115,7 +120,12 @@ export const ThemesPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`p-8 rounded-xl bg-gradient-to-br ${themes[selectedTheme].colors.background}`}>
+            <div 
+              className="p-8 rounded-xl"
+              style={{ 
+                background: `linear-gradient(to bottom right, ${themes[selectedTheme].colors.gradientFrom}, ${themes[selectedTheme].colors.gradientTo})` 
+              }}
+            >
               <div className="space-y-4">
                 <Button
                   className="w-full h-12 text-white font-semibold"

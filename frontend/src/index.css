@@ -252,13 +252,79 @@ code {
     }
 }
 
+/* Theme CSS Variables */
+:root {
+    --theme-primary: #6D28D9;
+    --theme-secondary: #8B5CF6;
+    --theme-accent: #C4B5FD;
+    --theme-primary-light: #EDE9FE;
+    --theme-gradient-from: #f8fafc;
+    --theme-gradient-to: #ede9fe;
+    --theme-text: #1f2937;
+    --theme-text-muted: #6b7280;
+    --theme-card-bg: #ffffff;
+    --theme-card-border: #e5e7eb;
+}
+
+/* Theme-aware primary button */
+.theme-btn-primary {
+    background-color: var(--theme-primary) !important;
+    color: white !important;
+}
+
+.theme-btn-primary:hover {
+    filter: brightness(1.1);
+}
+
+/* Theme-aware outline button */
+.theme-btn-outline {
+    border: 2px solid var(--theme-primary) !important;
+    color: var(--theme-primary) !important;
+    background: transparent !important;
+}
+
+.theme-btn-outline:hover {
+    background-color: var(--theme-primary-light) !important;
+}
+
+/* Theme-aware card */
+.theme-card {
+    background-color: var(--theme-card-bg) !important;
+    border-color: var(--theme-card-border) !important;
+}
+
+/* Theme-aware icon */
+.theme-icon {
+    color: var(--theme-primary) !important;
+}
+
+/* Theme-aware text */
+.theme-text {
+    color: var(--theme-text) !important;
+}
+
+.theme-text-muted {
+    color: var(--theme-text-muted) !important;
+}
+
+/* Theme-aware accent background */
+.theme-accent-bg {
+    background-color: var(--theme-primary-light) !important;
+}
+
+/* Theme-aware border */
+.theme-border {
+    border-color: var(--theme-primary) !important;
+}
+
 /* Dark theme body styles */
 body.dark-theme {
-    background: linear-gradient(to bottom right, rgb(15 23 42), rgb(30 41 59));
+    background: linear-gradient(to bottom right, rgb(15 23 42), rgb(30 41 59)) !important;
     color: rgb(248 250 252);
 }
 
-body.dark-theme .bg-white {
+body.dark-theme .bg-white,
+body.dark-theme .bg-gray-50 {
     background-color: rgb(30 41 59) !important;
 }
 
@@ -266,20 +332,53 @@ body.dark-theme .text-gray-900 {
     color: rgb(248 250 252) !important;
 }
 
-body.dark-theme .text-gray-600 {
-    color: rgb(148 163 184) !important;
+body.dark-theme .text-gray-800 {
+    color: rgb(226 232 240) !important;
 }
 
+body.dark-theme .text-gray-700 {
+    color: rgb(203 213 225) !important;
+}
+
+body.dark-theme .text-gray-600,
 body.dark-theme .text-gray-500 {
     color: rgb(148 163 184) !important;
 }
 
-body.dark-theme .border-gray-200 {
+body.dark-theme .border-gray-200,
+body.dark-theme .border-gray-300 {
     border-color: rgb(71 85 105) !important;
 }
 
 body.dark-theme .bg-white\/80 {
-    background-color: rgba(30, 41, 59, 0.8) !important;
+    background-color: rgba(30, 41, 59, 0.9) !important;
+}
+
+body.dark-theme .bg-gradient-to-br {
+    background: linear-gradient(to bottom right, rgb(15 23 42), rgb(30 41 59)) !important;
+}
+
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select {
+    background-color: rgb(51 65 85) !important;
+    color: rgb(248 250 252) !important;
+    border-color: rgb(71 85 105) !important;
+}
+
+body.dark-theme input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 1000px rgb(51 65 85) inset !important;
+    -webkit-text-fill-color: rgb(248 250 252) !important;
+}
+
+/* Smooth transitions for theme changes */
+body,
+.bg-white,
+.bg-gray-50,
+.text-gray-900,
+.text-gray-600,
+.border-gray-200 {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 @layer base {

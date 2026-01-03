@@ -84,7 +84,7 @@ export const GamificationPage = () => {
   const lockedAchievements = finalAchievements.filter(a => !a.unlocked);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50">
+    <div className="min-h-screen">
       <PageHeader 
         title="Прогресс и Достижения" 
         subtitle="Отслеживай свой путь и разблокируй награды"

@@ -4,17 +4,22 @@ import { api } from '../lib/api';
 import { Navigation } from './Navigation';
 import { Button } from './ui/button';
 import { Home, ArrowLeft } from 'lucide-react';
+import { useThemeStore } from '../store/themeStore';
 
-export const PageHeader = ({ title, subtitle, icon: Icon, iconColor = '#6D28D9', showBack = false, showHome = false }) => {
+export const PageHeader = ({ title, subtitle, icon: Icon, iconColor, showBack = false, showHome = false }) => {
   const navigate = useNavigate();
+  const theme = useThemeStore((state) => state.theme);
   
   const { data: user } = useQuery({
     queryKey: ['currentUser'],
     queryFn: () => api.getCurrentUser(),
   });
 
+  // Use theme color if iconColor not specified
+  const finalIconColor = iconColor || theme?.colors?.primary || '#6D28D9';
+
   return (
-    <div className="bg-white/80 backdrop-blur border-b shadow-sm">
+    <div className="bg-white/80 backdrop-blur border-b shadow-sm theme-card">
       <div className="max-w-7xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -30,7 +35,7 @@ export const PageHeader = ({ title, subtitle, icon: Icon, iconColor = '#6D28D9',
             )}
             <div>
               <h1 className="text-3xl font-heading font-bold text-gray-900 flex items-center gap-2">
-                {Icon && <Icon className="w-8 h-8" style={{ color: iconColor }} />}
+                {Icon && <Icon className="w-8 h-8" style={{ color: finalIconColor }} />}
                 {title}
               </h1>
               {subtitle && <p className="text-gray-600 mt-1">{subtitle}</p>}
@@ -41,7 +46,11 @@ export const PageHeader = ({ title, subtitle, icon: Icon, iconColor = '#6D28D9',
               <Button
                 variant="outline"
                 onClick={() => navigate('/dashboard')}
-                className="border-2 border-gray-200 hover:bg-violet-50"
+                className="border-2 border-gray-200 hover:opacity-80"
+                style={{ 
+                  borderColor: theme?.colors?.accent,
+                  color: theme?.colors?.primary 
+                }}
               >
                 <Home className="w-4 h-4 mr-2" />
                 Home
@@ -54,4 +63,3 @@ export const PageHeader = ({ title, subtitle, icon: Icon, iconColor = '#6D28D9',
     </div>
   );
 };
-

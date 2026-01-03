@@ -119,7 +119,7 @@ export const ProfilePage = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen">
       <PageHeader 
         title="Мой профиль" 
         subtitle="Управляйте своим аккаунтом и отслеживайте прогресс"

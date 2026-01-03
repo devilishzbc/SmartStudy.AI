@@ -203,7 +203,7 @@ export const FlashcardsPage = () => {
   // Celebration screen
   if (showCelebration) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <div className="min-h-screen">
         <PageHeader 
           title="AI Генератор Флешкарт" 
           subtitle="Создавай карточки для запоминания из своих заметок"
@@ -325,7 +325,7 @@ export const FlashcardsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen">
       <PageHeader 
         title="AI Генератор Флешкарт" 
         subtitle="Создавай карточки для запоминания из своих заметок"

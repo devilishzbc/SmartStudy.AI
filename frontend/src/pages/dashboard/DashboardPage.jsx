@@ -9,11 +9,13 @@ import { BookOpen, Target, Clock, AlertCircle, TrendingUp, Sparkles, LayoutDashb
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getRandomStudyTip } from '../../utils/studyTips';
+import { useThemeStore } from '../../store/themeStore';
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
   const [isGenerating, setIsGenerating] = useState(false);
   const [studyTip, setStudyTip] = useState('');
+  const theme = useThemeStore((state) => state.theme);
 
   // Get random study tip on page load
   useEffect(() => {
@@ -74,12 +76,12 @@ export const DashboardPage = () => {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50" data-testid="dashboard-page">
+    <div className="min-h-screen" data-testid="dashboard-page">
       <PageHeader 
         title={`Welcome back, ${user?.name || 'Student'}!`}
         subtitle="Here's your study progress overview"
         icon={LayoutDashboard}
-        iconColor="#6D28D9"
+        iconColor={theme?.tailwind?.iconColor || '#6D28D9'}
         showHome={false}
       />
       
@@ -89,7 +91,7 @@ export const DashboardPage = () => {
           <Button
             onClick={handleGenerateSchedule}
             disabled={isGenerating}
-            className="bg-violet-600 hover:bg-violet-700 text-white h-12 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+            className="theme-btn-primary h-12 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
             data-testid="generate-schedule-button"
           >
             <Sparkles className="w-4 h-4 mr-2" />

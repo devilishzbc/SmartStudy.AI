@@ -146,6 +146,32 @@ class ApiClient {
     return response.data;
   }
 
+  // Availability
+  async getAvailabilityRules() {
+    const response = await this.client.get('/availability/rules');
+    return response.data;
+  }
+
+  async createAvailabilityRule(data) {
+    const response = await this.client.post('/availability/rules', data);
+    return response.data;
+  }
+
+  async updateAvailabilityRule(ruleId, data) {
+    const response = await this.client.put(`/availability/rules/${ruleId}`, data);
+    return response.data;
+  }
+
+  async deleteAvailabilityRule(ruleId) {
+    const response = await this.client.delete(`/availability/rules/${ruleId}`);
+    return response.data;
+  }
+
+  async setAvailabilityRulesBatch(rules) {
+    const response = await this.client.post('/availability/rules/batch', rules);
+    return response.data;
+  }
+
   // Schedule
   async generateSchedule(data) {
     const response = await this.client.post('/schedule/generate', data);

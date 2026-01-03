@@ -524,6 +524,85 @@ async def get_analytics_summary(
     }
 
 # ============================================================================
+# AVAILABILITY ENDPOINTS
+# ============================================================================
+
+@api_router.get("/availability/rules")
+async def get_availability_rules(user_id: str = Depends(get_current_user)):
+    """Get all availability rules for the current user"""
+    rules = await db.availability_rules.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+    return rules
+
+@api_router.post("/availability/rules")
+async def create_availability_rule(rule: AvailabilityRuleCreate, user_id: str = Depends(get_current_user)):
+    """Create a new availability rule"""
+    rule_dict = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "day_of_week": rule.day_of_week,
+        "start_time": rule.start_time,
+        "end_time": rule.end_time,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.availability_rules.insert_one(rule_dict)
+    return rule_dict
+
+@api_router.put("/availability/rules/{rule_id}")
+async def update_availability_rule(rule_id: str, rule: AvailabilityRuleCreate, user_id: str = Depends(get_current_user)):
+    """Update an availability rule"""
+    existing = await db.availability_rules.find_one({"id": rule_id, "user_id": user_id})
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+    
+    await db.availability_rules.update_one(
+        {"id": rule_id},
+        {"$set": {
+            "day_of_week": rule.day_of_week,
+            "start_time": rule.start_time,
+            "end_time": rule.end_time
+        }}
+    )
+    updated = await db.availability_rules.find_one({"id": rule_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/availability/rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_availability_rule(rule_id: str, user_id: str = Depends(get_current_user)):
+    """Delete an availability rule"""
+    result = await db.availability_rules.delete_one({"id": rule_id, "user_id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+    return
+
+@api_router.post("/availability/rules/batch")
+async def set_availability_rules_batch(rules: List[AvailabilityRuleCreate], user_id: str = Depends(get_current_user)):
+    """Set multiple availability rules at once (replaces existing)"""
+    # Delete existing rules
+    await db.availability_rules.delete_many({"user_id": user_id})
+    
+    # Insert new rules
+    if rules:
+        new_rules = []
+        for rule in rules:
+            new_rules.append({
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "day_of_week": rule.day_of_week,
+                "start_time": rule.start_time,
+                "end_time": rule.end_time,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+        await db.availability_rules.insert_many(new_rules)
+        
+        # Return rules without MongoDB _id
+        rules_response = [
+            {k: v for k, v in rule.items() if k != '_id'} 
+            for rule in new_rules
+        ]
+        return {"message": f"Создано {len(rules_response)} правил доступности", "rules": rules_response}
+    
+    return {"message": "Все правила доступности очищены", "rules": []}
+
+# ============================================================================
 # SCHEDULE ENDPOINTS
 # ============================================================================
 
@@ -562,57 +641,94 @@ async def generate_schedule(schedule_request: ScheduleGenerateRequest, user_id: 
     if not rules:
         return {"sessions": [], "message": "Please set your availability first"}
     
-    # Simple scheduling logic (since OR-Tools scheduling is complex)
-    # Create study sessions based on availability
+    # Clear existing planned sessions
+    await db.study_sessions.delete_many({
+        "user_id": user_id,
+        "status": SessionStatus.PLANNED
+    })
+    
+    # Smart scheduling logic
     start_date = schedule_request.start_date or datetime.now(timezone.utc)
     end_date = schedule_request.end_date or start_date + timedelta(days=14)
     
-    scheduled_sessions = []
-    current_date = start_date
-    task_index = 0
+    # Sort tasks by priority and due date
+    def task_priority_key(task):
+        priority_order = {'urgent': 0, 'high': 1, 'medium': 2, 'low': 3}
+        priority = priority_order.get(task.get('priority', 'medium'), 2)
+        due = task.get('due_date', '9999-12-31')
+        return (priority, due)
     
-    while current_date < end_date and task_index < len(tasks):
+    sorted_tasks = sorted(tasks, key=task_priority_key)
+    
+    session_length = user.get('preferred_session_length', 50)
+    break_length = user.get('break_preference', 10)
+    
+    scheduled_sessions = []
+    task_queue = list(sorted_tasks)
+    current_date = start_date
+    
+    while current_date < end_date and task_queue:
         day_name = current_date.strftime("%A").lower()
         day_rules = [r for r in rules if r['day_of_week'] == day_name]
         
         for rule in day_rules:
-            if task_index >= len(tasks):
+            if not task_queue:
                 break
+            
+            # Parse time window
+            start_h, start_m = map(int, rule['start_time'].split(':'))
+            end_h, end_m = map(int, rule['end_time'].split(':'))
+            
+            window_start = current_date.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+            window_end = current_date.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
+            
+            # Calculate available minutes in this window
+            available_minutes = int((window_end - window_start).total_seconds() / 60)
+            current_time = window_start
+            
+            # Schedule sessions within this time window
+            while available_minutes >= session_length and task_queue:
+                task = task_queue[0]
+                task_remaining = task.get('estimated_minutes', session_length) - task.get('completed_minutes', 0)
                 
-            task = tasks[task_index]
-            start_time_parts = rule['start_time'].split(':')
-            
-            session_start = current_date.replace(
-                hour=int(start_time_parts[0]),
-                minute=int(start_time_parts[1]),
-                second=0,
-                microsecond=0
-            )
-            session_end = session_start + timedelta(minutes=user.get('preferred_session_length', 50))
-            
-            session_dict = {
-                'id': str(uuid.uuid4()),
-                'user_id': user_id,
-                'task_id': task['id'],
-                'course_id': task['course_id'],
-                'start_time': session_start.isoformat(),
-                'end_time': session_end.isoformat(),
-                'planned_minutes': user.get('preferred_session_length', 50),
-                'actual_minutes': 0,
-                'status': SessionStatus.PLANNED,
-                'session_type': SessionType.STUDY,
-                'created_at': datetime.now(timezone.utc).isoformat()
-            }
-            
-            await db.study_sessions.insert_one(session_dict)
-            scheduled_sessions.append(StudySessionResponse(**session_dict))
-            task_index += 1
+                if task_remaining <= 0:
+                    task_queue.pop(0)
+                    continue
+                
+                session_duration = min(session_length, task_remaining, available_minutes)
+                session_end = current_time + timedelta(minutes=session_duration)
+                
+                session_dict = {
+                    'id': str(uuid.uuid4()),
+                    'user_id': user_id,
+                    'task_id': task['id'],
+                    'course_id': task.get('course_id'),
+                    'start_time': current_time.isoformat(),
+                    'end_time': session_end.isoformat(),
+                    'planned_minutes': session_duration,
+                    'actual_minutes': 0,
+                    'status': SessionStatus.PLANNED,
+                    'session_type': SessionType.STUDY,
+                    'created_at': datetime.now(timezone.utc).isoformat()
+                }
+                
+                await db.study_sessions.insert_one(session_dict)
+                scheduled_sessions.append(StudySessionResponse(**session_dict))
+                
+                # Update task progress tracking
+                task['completed_minutes'] = task.get('completed_minutes', 0) + session_duration
+                if task['completed_minutes'] >= task.get('estimated_minutes', session_length):
+                    task_queue.pop(0)
+                
+                # Move to next time slot
+                current_time = session_end + timedelta(minutes=break_length)
+                available_minutes -= (session_duration + break_length)
         
         current_date += timedelta(days=1)
     
     return {
         "sessions": scheduled_sessions,
-        "message": f"Successfully generated {len(scheduled_sessions)} study sessions"
+        "message": f"Создано {len(scheduled_sessions)} учебных сессий"
     }
 
 # Include the router in the main app

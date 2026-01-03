@@ -214,7 +214,7 @@ export const AICoachPage = () => {
   const isLimitReached = rateLimit && !rateLimit.is_allowed;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50">
+    <div className="min-h-screen">
       <PageHeader 
         title="AI Study Coach" 
         subtitle="Твой персональный помощник по учёбе"

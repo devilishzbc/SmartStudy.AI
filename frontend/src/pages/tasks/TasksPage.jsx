@@ -99,7 +99,7 @@ export const TasksPage = () => {
   if (tasksLoading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50" data-testid="tasks-page">
+    <div className="min-h-screen" data-testid="tasks-page">
       <PageHeader 
         title="Tasks" 
         subtitle="Manage your assignments and deadlines"

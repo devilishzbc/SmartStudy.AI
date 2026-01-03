@@ -70,7 +70,7 @@ export const CoursesPage = () => {
   if (isLoading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50" data-testid="courses-page">
+    <div className="min-h-screen" data-testid="courses-page">
       <PageHeader 
         title="Courses" 
         subtitle="Manage your academic courses"
