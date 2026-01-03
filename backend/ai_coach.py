@@ -1,12 +1,16 @@
 """
-AI Coach module with Groq API integration and rate limiting.
+AI Coach module with Groq API integration, rate limiting, and function calling.
+Supports executing actions like creating tasks, flashcards, courses through chat.
 """
 
 import os
 import httpx
+import json
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import logging
+
+from ai_actions import AI_TOOLS, execute_action
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +20,9 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # Rate limiting settings
 DAILY_MESSAGE_LIMIT = int(os.getenv("AI_DAILY_LIMIT", "100"))  # Messages per user per day
-MAX_TOKENS = int(os.getenv("AI_MAX_TOKENS", "1024"))  # Max response tokens
+MAX_TOKENS = int(os.getenv("AI_MAX_TOKENS", "1500"))  # Max response tokens (increased for actions)
 
-# System prompt for the AI Coach
+# System prompt for the AI Coach with action support
 SYSTEM_PROMPT = """Ты SmartStudy AI Coach - умный и дружелюбный помощник по учёбе на русском языке.
 
 Твоя роль:
@@ -28,15 +32,35 @@ SYSTEM_PROMPT = """Ты SmartStudy AI Coach - умный и дружелюбны
 - Помогать разбивать сложные задачи на простые шаги
 - Рекомендовать техники обучения (Pomodoro, активное вспоминание, интервальное повторение)
 
+🔧 ВАЖНО - У тебя есть ФУНКЦИИ для выполнения действий:
+- create_task - создать задачу
+- create_multiple_tasks - создать несколько задач/план
+- generate_flashcards - создать флешкарточки по теме
+- create_course - создать новый курс/предмет
+- create_study_plan - создать план изучения темы
+- start_pomodoro - предложить запустить Pomodoro
+- get_motivation - дать мотивацию
+
+Когда пользователь ПРОСИТ что-то СДЕЛАТЬ (создать, добавить, сгенерировать) - 
+ИСПОЛЬЗУЙ ФУНКЦИИ, а не просто описывай что делать!
+
+Примеры когда нужно использовать функции:
+- "создай задачу выучить главу 5" → вызови create_task
+- "сделай 5 флешкарточек по физике" → вызови generate_flashcards
+- "добавь курс математика" → вызови create_course
+- "составь план изучения Python" → вызови create_study_plan
+- "мне лень учиться" → вызови get_motivation
+
 ВАЖНЫЕ ПРАВИЛА:
 1. ВСЕГДА выполняй ТОЧНО то, что просит пользователь
-2. Если просят N советов/пунктов - дай РОВНО N, не меньше
-3. Используй эмодзи для дружелюбности 😊
-4. Давай конкретные, практичные советы
-5. Учитывай контекст пользователя (его задачи, курсы)
-6. Будь позитивным и мотивирующим
-7. Отвечай ТОЛЬКО на русском языке
-8. Структурируй ответы с нумерацией когда уместно
+2. Если пользователь просит что-то СОЗДАТЬ - используй функцию!
+3. Если просят N советов/пунктов - дай РОВНО N, не меньше
+4. Используй эмодзи для дружелюбности 😊
+5. Давай конкретные, практичные советы
+6. Учитывай контекст пользователя (его задачи, курсы)
+7. Будь позитивным и мотивирующим
+8. Отвечай ТОЛЬКО на русском языке
+9. Структурируй ответы с нумерацией когда уместно
 
 Контекст пользователя будет предоставлен в начале разговора."""
 
@@ -148,10 +172,10 @@ async def generate_ai_response(
     user: dict,
     tasks: list,
     courses: list = None
-) -> str:
+) -> Dict[str, Any]:
     """
-    Generate AI response using Groq API (Free & Fast!).
-    Falls back to simple responses if API key not configured.
+    Generate AI response using Groq API with function calling support.
+    Returns dict with 'message' (str) and 'actions' (list of executed actions).
     """
     
     # Check rate limit
@@ -165,7 +189,10 @@ async def generate_ai_response(
     # If no API key, use fallback
     if not GROQ_API_KEY:
         logger.warning("GROQ_API_KEY not set, using fallback responses")
-        return _generate_fallback_response(user_message, user, tasks)
+        return {
+            "message": _generate_fallback_response(user_message, user, tasks),
+            "actions": []
+        }
     
     try:
         # Build context
@@ -183,7 +210,7 @@ async def generate_ai_response(
         if not history:
             messages.append({
                 "role": "user",
-                "content": f"[Контекст пользователя]\n{user_context}\n\n[Вопрос]\n{user_message}"
+                "content": f"[Контекст пользователя]\n{user_context}\n\n[Запрос]\n{user_message}"
             })
         else:
             # Add history
@@ -196,8 +223,8 @@ async def generate_ai_response(
                 "content": user_message
             })
         
-        # Call Groq API (OpenAI-compatible format)
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # Call Groq API with function calling
+        async with httpx.AsyncClient(timeout=45.0) as client:
             response = await client.post(
                 GROQ_API_URL,
                 headers={
@@ -205,31 +232,84 @@ async def generate_ai_response(
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "llama-3.3-70b-versatile",  # Free, fast, powerful
+                    "model": "llama-3.3-70b-versatile",
                     "max_tokens": MAX_TOKENS,
                     "temperature": 0.7,
-                    "messages": messages
+                    "messages": messages,
+                    "tools": AI_TOOLS,
+                    "tool_choice": "auto"
                 }
             )
             
             if response.status_code != 200:
                 logger.error(f"Groq API error: {response.status_code} - {response.text}")
-                return _generate_fallback_response(user_message, user, tasks)
+                return {
+                    "message": _generate_fallback_response(user_message, user, tasks),
+                    "actions": []
+                }
             
             data = response.json()
+            choice = data.get("choices", [{}])[0]
+            message = choice.get("message", {})
             
-            # Extract text from OpenAI-format response
-            if data.get("choices") and len(data["choices"]) > 0:
-                return data["choices"][0].get("message", {}).get("content", _generate_fallback_response(user_message, user, tasks))
+            # Check if AI wants to call functions
+            tool_calls = message.get("tool_calls", [])
+            executed_actions = []
             
-            return _generate_fallback_response(user_message, user, tasks)
+            if tool_calls:
+                logger.info(f"AI requested {len(tool_calls)} tool calls")
+                
+                for tool_call in tool_calls:
+                    func = tool_call.get("function", {})
+                    action_name = func.get("name")
+                    
+                    try:
+                        params = json.loads(func.get("arguments", "{}"))
+                    except json.JSONDecodeError:
+                        params = {}
+                    
+                    logger.info(f"Executing action: {action_name} with params: {params}")
+                    
+                    # Execute the action!
+                    result = await execute_action(db, user_id, action_name, params)
+                    executed_actions.append(result)
+                
+                # Build response message from actions
+                action_messages = [a.get("message", "") for a in executed_actions if a.get("message")]
+                
+                # If AI also provided text content, include it
+                ai_text = message.get("content", "")
+                
+                if action_messages:
+                    final_message = "\n\n".join(action_messages)
+                    if ai_text:
+                        final_message = ai_text + "\n\n" + final_message
+                else:
+                    final_message = ai_text or "Готово! ✅"
+                
+                return {
+                    "message": final_message,
+                    "actions": executed_actions
+                }
+            
+            # No function calls, just text response
+            return {
+                "message": message.get("content", _generate_fallback_response(user_message, user, tasks)),
+                "actions": []
+            }
             
     except httpx.TimeoutException:
         logger.error("Groq API timeout")
-        return "Извини, сервер немного загружен. Попробуй ещё раз через минуту! ⏱️"
+        return {
+            "message": "Извини, сервер немного загружен. Попробуй ещё раз через минуту! ⏱️",
+            "actions": []
+        }
     except Exception as e:
         logger.error(f"AI Coach error: {e}")
-        return _generate_fallback_response(user_message, user, tasks)
+        return {
+            "message": _generate_fallback_response(user_message, user, tasks),
+            "actions": []
+        }
 
 
 def _generate_fallback_response(user_message: str, user: dict, tasks: list) -> str:
@@ -244,13 +324,21 @@ def _generate_fallback_response(user_message: str, user: dict, tasks: list) -> s
     
     # Greetings
     if any(word in message_lower for word in ['привет', 'hello', 'hi', 'здравствуй', 'добрый']):
-        return f"Привет, {user_name}! 👋 Я твой AI-помощник по учёбе. У тебя сейчас {task_count} активных задач. Чем могу помочь?"
+        return f"Привет, {user_name}! 👋 Я твой AI-помощник по учёбе. У тебя сейчас {task_count} активных задач. Чем могу помочь?\n\n💡 Я могу создавать задачи, флешкарточки, курсы и планы обучения. Просто попроси!"
+    
+    # Task creation request
+    if any(word in message_lower for word in ['создай', 'добавь', 'сделай']) and any(word in message_lower for word in ['задач', 'task', 'дело']):
+        return f"Для создания задач нужен API ключ. Пока ты можешь:\n\n1. Перейти в раздел 'Задачи' и добавить вручную\n2. Или настроить API ключ для AI функций\n\nЧем ещё могу помочь?"
     
     # Tasks
     if any(word in message_lower for word in ['задач', 'task', 'дела', 'todo', 'сделать']):
         if task_count == 0:
-            return f"Отлично, {user_name}! У тебя нет активных задач. Самое время добавить новые цели! 🎯"
+            return f"Отлично, {user_name}! У тебя нет активных задач. Самое время добавить новые цели! 🎯\n\n💡 Скажи например: 'Создай задачу выучить главу 5'"
         return f"У тебя {task_count} активных задач. Рекомендую:\n\n1. 🎯 Начни с самой важной задачи\n2. 🍅 Используй Pomodoro (25 мин работы + 5 мин отдых)\n3. ✅ Отмечай выполненное для мотивации\n\nКакую задачу начнёшь первой?"
+    
+    # Flashcards
+    if any(word in message_lower for word in ['флешкарт', 'flashcard', 'карточ']):
+        return f"Для создания флешкарточек нужен API ключ. Пока перейди в раздел 'Flashcards' и создай вручную! 🃏"
     
     # Planning/Schedule
     if any(word in message_lower for word in ['план', 'расписание', 'schedule', 'время', 'когда']):
@@ -265,9 +353,36 @@ def _generate_fallback_response(user_message: str, user: dict, tasks: list) -> s
         return f"Советы для эффективной учёбы:\n\n1. 🧠 Активное вспоминание > пассивное чтение\n2. 📝 Делай конспекты своими словами\n3. 🔄 Интервальное повторение (сегодня, завтра, через неделю)\n4. 💤 Хороший сон важнее ночной зубрёжки\n5. 🏃 Физическая активность улучшает память\n\nЧто именно готовишь?"
     
     # Help
-    if any(word in message_lower for word in ['помощь', 'help', 'что умеешь', 'возможности']):
-        return f"Я могу помочь тебе с:\n\n📚 **Планирование учёбы**\n- Советы по расписанию\n- Приоритизация задач\n\n⏱️ **Тайм-менеджмент**\n- Техника Pomodoro\n- Борьба с прокрастинацией\n\n💪 **Мотивация**\n- Поддержка и ободрение\n- Советы когда тяжело\n\n🧠 **Техники обучения**\n- Эффективное запоминание\n- Подготовка к экзаменам\n\nПросто спроси!"
+    if any(word in message_lower for word in ['помощь', 'help', 'что умеешь', 'возможности', 'можешь']):
+        return f"""Я могу помочь тебе с:
+
+🔧 **Создание через чат:**
+- "Создай задачу выучить главу 5"
+- "Сделай 5 флешкарточек по Python"
+- "Добавь курс Математика"
+- "Составь план изучения JavaScript"
+
+📚 **Планирование учёбы**
+- Советы по расписанию
+- Приоритизация задач
+
+⏱️ **Тайм-менеджмент**
+- Техника Pomodoro
+- Борьба с прокрастинацией
+
+💪 **Мотивация**
+- Поддержка и ободрение
+- Советы когда тяжело
+
+Просто напиши что нужно!"""
     
     # Default response
-    return f"Интересный вопрос! 🤔\n\nЯ здесь чтобы помочь с учёбой. Могу посоветовать:\n- Как лучше спланировать время\n- Какие техники обучения использовать\n- Как справиться с трудностями\n\nРасскажи подробнее, что тебя интересует?"
+    return f"""Интересный вопрос! 🤔
 
+Я здесь чтобы помочь с учёбой. Могу:
+- 📝 Создавать задачи, флешкарточки, курсы
+- 📅 Помогать планировать время
+- 💡 Давать советы по обучению
+- 💪 Мотивировать когда тяжело
+
+Расскажи подробнее, что тебя интересует?"""

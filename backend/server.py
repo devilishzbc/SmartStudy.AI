@@ -255,12 +255,16 @@ async def get_coach_rate_limit(user_id: str = Depends(get_current_user)):
     return await get_rate_limit_status(db, user_id)
 
 
-@api_router.post("/coach/conversations/{conversation_id}/messages", response_model=AIMessageResponse)
+@api_router.post("/coach/conversations/{conversation_id}/messages")
 async def send_message(
     conversation_id: str,
     message_data: AIMessageCreate,
     user_id: str = Depends(get_current_user)
 ):
+    """
+    Send a message to AI Coach and get response with optional actions.
+    AI can now execute actions like creating tasks, flashcards, courses, etc.
+    """
     # Verify conversation belongs to user
     conversation = await db.ai_conversations.find_one({
         "id": conversation_id,
@@ -287,8 +291,8 @@ async def send_message(
     courses = await db.courses.find({"user_id": user_id}, {"_id": 0}).to_list(20)
     
     try:
-        # Generate AI response using the new AI Coach module
-        ai_response = await generate_ai_response(
+        # Generate AI response using the AI Coach module with function calling
+        ai_result = await generate_ai_response(
             db=db,
             user_id=user_id,
             conversation_id=conversation_id,
@@ -303,18 +307,31 @@ async def send_message(
             detail=str(e)
         )
     
+    # ai_result is now a dict with 'message' and 'actions'
+    ai_response_text = ai_result.get("message", "")
+    executed_actions = ai_result.get("actions", [])
+    
     # Store AI response
     ai_message_dict = {
         'id': str(uuid.uuid4()),
         'conversation_id': conversation_id,
         'user_id': user_id,
         'role': 'assistant',
-        'content': ai_response,
+        'content': ai_response_text,
+        'actions': executed_actions,  # Store actions with message
         'created_at': datetime.now(timezone.utc).isoformat()
     }
     await db.ai_messages.insert_one(ai_message_dict)
     
-    return AIMessageResponse(**ai_message_dict)
+    # Return enhanced response with actions
+    return {
+        "id": ai_message_dict['id'],
+        "conversation_id": conversation_id,
+        "role": "assistant",
+        "content": ai_response_text,
+        "actions": executed_actions,
+        "created_at": ai_message_dict['created_at']
+    }
 
 
 @api_router.get("/coach/conversations/{conversation_id}/messages", response_model=List[AIMessageResponse])
