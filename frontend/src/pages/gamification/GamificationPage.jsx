@@ -25,25 +25,69 @@ export const GamificationPage = () => {
   const streak = completedTasks.length >= 7 ? 7 : completedTasks.length;
 
   const achievements = [
-    { id: 1, name: 'First Task', icon: '🎯', description: 'Complete your first task', unlocked: completedTasks.length >= 1, xp: 50 },
-    { id: 2, name: 'Task Master', icon: '📚', description: 'Complete 10 tasks', unlocked: completedTasks.length >= 10, xp: 200 },
-    { id: 3, name: 'Study Streak', icon: '🔥', description: '7 days study streak', unlocked: streak >= 7, xp: 300 },
-    { id: 4, name: 'Early Bird', icon: '🌅', description: 'Complete a task before 9 AM', unlocked: false, xp: 100 },
-    { id: 5, name: 'Night Owl', icon: '🦉', description: 'Study after 10 PM', unlocked: false, xp: 100 },
-    { id: 6, name: 'Focused Mind', icon: '🧠', description: 'Complete 5 Pomodoro sessions', unlocked: false, xp: 150 },
-    { id: 7, name: 'Speed Runner', icon: '⚡', description: 'Complete a task in under 30 minutes', unlocked: false, xp: 100 },
-    { id: 8, name: 'Consistent', icon: '📅', description: 'Study every day for a week', unlocked: streak >= 7, xp: 400 },
-    { id: 9, name: 'Overachiever', icon: '🏆', description: 'Complete 50 tasks', unlocked: completedTasks.length >= 50, xp: 1000 },
+    // 🎯 Начальные достижения
+    { id: 1, name: 'Первый шаг', icon: '🎯', description: 'Выполни свою первую задачу', unlocked: completedTasks.length >= 1, xp: 50, category: 'начало' },
+    { id: 2, name: 'Новичок', icon: '🌱', description: 'Выполни 5 задач', unlocked: completedTasks.length >= 5, xp: 100, category: 'начало' },
+    { id: 3, name: 'Ученик', icon: '📖', description: 'Выполни 10 задач', unlocked: completedTasks.length >= 10, xp: 200, category: 'начало' },
+    
+    // 🔥 Серии (Streak)
+    { id: 4, name: 'Огненный старт', icon: '🔥', description: '3 дня подряд учёбы', unlocked: streak >= 3, xp: 150, category: 'серии' },
+    { id: 5, name: 'Неделя силы', icon: '💪', description: '7 дней подряд учёбы', unlocked: streak >= 7, xp: 300, category: 'серии' },
+    { id: 6, name: 'Непобедимый', icon: '⚔️', description: '14 дней подряд учёбы', unlocked: streak >= 14, xp: 500, category: 'серии' },
+    { id: 7, name: 'Легенда', icon: '👑', description: '30 дней подряд учёбы', unlocked: streak >= 30, xp: 1000, category: 'серии' },
+    
+    // ⏰ Время
+    { id: 8, name: 'Ранняя пташка', icon: '🌅', description: 'Выполни задачу до 9:00', unlocked: false, xp: 100, category: 'время' },
+    { id: 9, name: 'Ночной волк', icon: '🌙', description: 'Учись после 23:00', unlocked: false, xp: 100, category: 'время' },
+    { id: 10, name: 'Воскресный воин', icon: '☀️', description: 'Учись в воскресенье', unlocked: false, xp: 150, category: 'время' },
+    
+    // 🍅 Pomodoro
+    { id: 11, name: 'Помидорка', icon: '🍅', description: 'Заверши 1 Pomodoro сессию', unlocked: false, xp: 50, category: 'фокус' },
+    { id: 12, name: 'Фокус-мастер', icon: '🧘', description: 'Заверши 10 Pomodoro сессий', unlocked: false, xp: 200, category: 'фокус' },
+    { id: 13, name: 'Zen Mode', icon: '🧠', description: 'Заверши 50 Pomodoro сессий', unlocked: false, xp: 500, category: 'фокус' },
+    { id: 14, name: 'Марафонец', icon: '🏃', description: '5 Pomodoro подряд за день', unlocked: false, xp: 300, category: 'фокус' },
+    
+    // ⚡ Скорость
+    { id: 15, name: 'Молния', icon: '⚡', description: 'Выполни задачу за 15 минут', unlocked: false, xp: 100, category: 'скорость' },
+    { id: 16, name: 'Спринтер', icon: '🏎️', description: 'Выполни 3 задачи за день', unlocked: false, xp: 150, category: 'скорость' },
+    { id: 17, name: 'Машина', icon: '🤖', description: 'Выполни 5 задач за день', unlocked: false, xp: 300, category: 'скорость' },
+    
+    // 📚 Мастерство
+    { id: 18, name: 'Книжный червь', icon: '📚', description: 'Выполни 25 задач', unlocked: completedTasks.length >= 25, xp: 400, category: 'мастерство' },
+    { id: 19, name: 'Профессор', icon: '🎓', description: 'Выполни 50 задач', unlocked: completedTasks.length >= 50, xp: 750, category: 'мастерство' },
+    { id: 20, name: 'Гений', icon: '🧬', description: 'Выполни 100 задач', unlocked: completedTasks.length >= 100, xp: 1500, category: 'мастерство' },
+    { id: 21, name: 'Мастер вселенной', icon: '🌌', description: 'Выполни 200 задач', unlocked: completedTasks.length >= 200, xp: 3000, category: 'мастерство' },
+    
+    // 🎮 Особые
+    { id: 22, name: 'AI друг', icon: '🤝', description: 'Поговори с AI Coach', unlocked: false, xp: 50, category: 'особые' },
+    { id: 23, name: 'Флэшкард гуру', icon: '🃏', description: 'Создай 10 флэшкарт', unlocked: false, xp: 150, category: 'особые' },
+    { id: 24, name: 'Планировщик', icon: '📋', description: 'Сгенерируй расписание', unlocked: false, xp: 100, category: 'особые' },
+    { id: 25, name: 'Перфекционист', icon: '✨', description: 'Выполни все задачи за день', unlocked: false, xp: 250, category: 'особые' },
+    
+    // 🏆 Редкие
+    { id: 26, name: 'Феникс', icon: '🔮', description: 'Вернись после 7 дней отсутствия', unlocked: false, xp: 200, category: 'редкие' },
+    { id: 27, name: 'Коллекционер', icon: '💎', description: 'Разблокируй 15 достижений', unlocked: false, xp: 500, category: 'редкие' },
+    { id: 28, name: 'Элита', icon: '🏅', description: 'Достигни 5 уровня', unlocked: level >= 5, xp: 400, category: 'редкие' },
+    { id: 29, name: 'Титан', icon: '⭐', description: 'Достигни 10 уровня', unlocked: level >= 10, xp: 1000, category: 'редкие' },
+    { id: 30, name: 'Бессмертный', icon: '🌟', description: 'Набери 10,000 XP', unlocked: totalXP >= 10000, xp: 2000, category: 'редкие' },
   ];
 
-  const unlockedAchievements = achievements.filter(a => a.unlocked);
-  const lockedAchievements = achievements.filter(a => !a.unlocked);
+  // Подсчитываем разблокированные (без "Коллекционера")
+  const unlockedCount = achievements.filter(a => a.unlocked && a.id !== 27).length;
+  
+  // Обновляем "Коллекционера" если разблокировано 15+ достижений
+  const finalAchievements = achievements.map(a => 
+    a.id === 27 ? { ...a, unlocked: unlockedCount >= 15 } : a
+  );
+  
+  const unlockedAchievements = finalAchievements.filter(a => a.unlocked);
+  const lockedAchievements = finalAchievements.filter(a => !a.unlocked);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50">
       <PageHeader 
-        title="Your Progress & Achievements" 
-        subtitle="Track your learning journey and unlock rewards"
+        title="Прогресс и Достижения" 
+        subtitle="Отслеживай свой путь и разблокируй награды"
         icon={Trophy}
         iconColor="#8B5CF6"
       />
