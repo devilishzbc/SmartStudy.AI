@@ -228,8 +228,8 @@ class ApiClient {
   }
 
   // Flashcards
-  async generateFlashcards(text) {
-    const response = await this.client.post('/flashcards/generate', { text });
+  async generateFlashcards(text, numCards = 5) {
+    const response = await this.client.post('/flashcards/generate', { text, num_cards: numCards });
     return response.data;
   }
 

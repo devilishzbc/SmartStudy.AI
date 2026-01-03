@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -11,6 +12,7 @@ import { User, Camera, Mail, Calendar, Trophy, Flame, Target, TrendingUp, Award,
 import { toast } from 'sonner';
 
 export const ProfilePage = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
@@ -78,14 +80,19 @@ export const ProfilePage = () => {
   const progressToNextLevel = ((totalXP % 500) / 500) * 100;
 
   const achievements = [
-    { id: 1, name: 'Первая задача', icon: '🎯', unlocked: completedTasks.length >= 1, xp: 50 },
-    { id: 2, name: 'Мастер задач', icon: '📚', unlocked: completedTasks.length >= 10, xp: 200 },
-    { id: 3, name: 'Неделя учёбы', icon: '🔥', unlocked: streak >= 7, xp: 300 },
-    { id: 4, name: 'Ранняя птица', icon: '🌅', unlocked: false, xp: 100 },
-    { id: 5, name: 'Ночной совёнок', icon: '🦉', unlocked: false, xp: 100 },
-    { id: 6, name: 'Концентрация', icon: '🧠', unlocked: false, xp: 150 },
-    { id: 7, name: 'Спринтер', icon: '⚡', unlocked: false, xp: 100 },
-    { id: 8, name: 'Постоянство', icon: '📅', unlocked: streak >= 7, xp: 400 },
+    // Показываем 12 основных ачивок на профиле
+    { id: 1, name: 'Первый шаг', icon: '🎯', unlocked: completedTasks.length >= 1, xp: 50 },
+    { id: 2, name: 'Новичок', icon: '🌱', unlocked: completedTasks.length >= 5, xp: 100 },
+    { id: 3, name: 'Ученик', icon: '📖', unlocked: completedTasks.length >= 10, xp: 200 },
+    { id: 4, name: 'Огненный старт', icon: '🔥', unlocked: streak >= 3, xp: 150 },
+    { id: 5, name: 'Неделя силы', icon: '💪', unlocked: streak >= 7, xp: 300 },
+    { id: 6, name: 'Ранняя пташка', icon: '🌅', unlocked: false, xp: 100 },
+    { id: 7, name: 'Ночной волк', icon: '🌙', unlocked: false, xp: 100 },
+    { id: 8, name: 'Помидорка', icon: '🍅', unlocked: false, xp: 50 },
+    { id: 9, name: 'Молния', icon: '⚡', unlocked: false, xp: 100 },
+    { id: 10, name: 'Книжный червь', icon: '📚', unlocked: completedTasks.length >= 25, xp: 400 },
+    { id: 11, name: 'AI друг', icon: '🤝', unlocked: false, xp: 50 },
+    { id: 12, name: 'Элита', icon: '🏅', unlocked: level >= 5, xp: 400 },
   ];
 
   const unlockedAchievements = achievements.filter(a => a.unlocked);
@@ -424,6 +431,13 @@ export const ProfilePage = () => {
                     </div>
                   ))}
                 </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-4 border-2 border-violet-200 text-violet-600 hover:bg-violet-50"
+                  onClick={() => navigate('/achievements')}
+                >
+                  Смотреть все 30 достижений →
+                </Button>
               </CardContent>
             </Card>
 

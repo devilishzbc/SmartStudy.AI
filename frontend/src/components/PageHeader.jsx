@@ -5,7 +5,7 @@ import { Navigation } from './Navigation';
 import { Button } from './ui/button';
 import { Home, ArrowLeft } from 'lucide-react';
 
-export const PageHeader = ({ title, subtitle, icon: Icon, iconColor = '#6D28D9', showBack = false, showHome = true }) => {
+export const PageHeader = ({ title, subtitle, icon: Icon, iconColor = '#6D28D9', showBack = false, showHome = false }) => {
   const navigate = useNavigate();
   
   const { data: user } = useQuery({

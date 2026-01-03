@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 from pathlib import Path
 import os
 import logging
+import json
+import re
+import httpx
 from datetime import datetime, timedelta, timezone
 import uuid
 from typing import List, Optional
@@ -372,27 +375,116 @@ async def get_today_pomodoro_count(user_id: str = Depends(get_current_user)):
 
 @api_router.post("/flashcards/generate")
 async def generate_flashcards(text_data: dict, user_id: str = Depends(get_current_user)):
-    """Generate flashcards from text (placeholder - integrate your own AI API)"""
+    """Generate flashcards from text using Groq AI"""
     try:
         text = text_data.get('text', '')
+        num_cards = text_data.get('num_cards', 5)
+        
         if not text:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Text is required")
         
-        # Generate simple flashcards based on text
-        # TODO: Replace with real AI API integration (OpenAI, Anthropic, etc.)
-        words = text.split()
+        if len(text) < 50:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Текст слишком короткий. Минимум 50 символов.")
         
-        flashcards = [
-            {"question": "Что является главной темой этого материала?", "answer": "Материал описывает ключевые концепции для изучения."},
-            {"question": "Какие основные понятия затронуты в тексте?", "answer": f"Текст содержит {len(words)} слов и охватывает несколько важных тем."},
-            {"question": "Как применить эти знания на практике?", "answer": "Рекомендуется регулярно повторять материал и решать практические задачи."},
-        ]
+        # Use Groq API for flashcard generation
+        groq_api_key = os.getenv("GROQ_API_KEY")
         
-        return {"flashcards": flashcards}
+        if not groq_api_key:
+            # Fallback to simple generation
+            return _generate_fallback_flashcards(text)
         
+        prompt = f"""Проанализируй следующий учебный материал и создай {num_cards} флешкарт для запоминания.
+
+МАТЕРИАЛ:
+{text[:3000]}
+
+ТРЕБОВАНИЯ:
+1. Создай РОВНО {num_cards} флешкарт
+2. Каждая флешкарта должна иметь:
+   - question: краткий, понятный вопрос
+   - answer: точный, информативный ответ (1-3 предложения)
+3. Вопросы должны проверять понимание ключевых концепций
+4. Отвечай ТОЛЬКО на русском языке
+5. Верни ТОЛЬКО JSON массив без дополнительного текста
+
+ФОРМАТ ОТВЕТА (строго JSON):
+[
+  {{"question": "Вопрос 1?", "answer": "Ответ 1"}},
+  {{"question": "Вопрос 2?", "answer": "Ответ 2"}}
+]"""
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {groq_api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "max_tokens": 2000,
+                    "temperature": 0.7,
+                    "messages": [
+                        {"role": "system", "content": "Ты помощник для создания учебных флешкарт. Отвечай ТОЛЬКО валидным JSON массивом."},
+                        {"role": "user", "content": prompt}
+                    ]
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                content = data["choices"][0]["message"]["content"].strip()
+                
+                # Parse JSON from response - try to extract JSON array
+                json_match = re.search(r'\[[\s\S]*\]', content)
+                if json_match:
+                    flashcards = json.loads(json_match.group())
+                    # Validate structure
+                    valid_cards = []
+                    for card in flashcards:
+                        if isinstance(card, dict) and 'question' in card and 'answer' in card:
+                            valid_cards.append({
+                                "question": str(card['question']),
+                                "answer": str(card['answer'])
+                            })
+                    
+                    if valid_cards:
+                        return {"flashcards": valid_cards}
+                
+                # If parsing failed, use fallback
+                return _generate_fallback_flashcards(text)
+            else:
+                logger.error(f"Groq API error: {response.status_code} - {response.text}")
+                return _generate_fallback_flashcards(text)
+                
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parsing error: {e}")
+        return _generate_fallback_flashcards(text)
     except Exception as e:
         logger.error(f"Flashcard generation error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate flashcards")
+
+
+def _generate_fallback_flashcards(text: str) -> dict:
+    """Generate simple flashcards when AI is unavailable"""
+    sentences = [s.strip() for s in text.split('.') if len(s.strip()) > 20][:5]
+    
+    flashcards = []
+    for i, sentence in enumerate(sentences):
+        words = sentence.split()
+        if len(words) > 3:
+            flashcards.append({
+                "question": f"Что означает: '{' '.join(words[:5])}...'?",
+                "answer": sentence
+            })
+    
+    if not flashcards:
+        flashcards = [
+            {"question": "Какова главная идея этого материала?", "answer": text[:200] + "..."},
+            {"question": "Что важно запомнить?", "answer": "Основные концепции из предоставленного материала."},
+        ]
+    
+    return {"flashcards": flashcards}
 
 # ============================================================================
 # ANALYTICS ENDPOINTS
