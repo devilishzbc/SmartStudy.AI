@@ -211,6 +211,41 @@ async def get_conversations(user_id: str = Depends(get_current_user)):
     return [AIConversationResponse(**conv) for conv in conversations]
 
 
+@api_router.put("/coach/conversations/{conversation_id}")
+async def update_conversation(
+    conversation_id: str,
+    update_data: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Update conversation title."""
+    result = await db.ai_conversations.update_one(
+        {"id": conversation_id, "user_id": user_id},
+        {"$set": {"title": update_data.get("title", "New Conversation")}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+    
+    conversation = await db.ai_conversations.find_one({"id": conversation_id}, {"_id": 0})
+    return AIConversationResponse(**conversation)
+
+
+@api_router.delete("/coach/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: str,
+    user_id: str = Depends(get_current_user)
+):
+    """Delete conversation and all its messages."""
+    # Delete conversation
+    result = await db.ai_conversations.delete_one({"id": conversation_id, "user_id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+    
+    # Delete all messages in this conversation
+    await db.ai_messages.delete_many({"conversation_id": conversation_id})
+    
+    return {"message": "Conversation deleted successfully"}
+
+
 @api_router.get("/coach/rate-limit")
 async def get_coach_rate_limit(user_id: str = Depends(get_current_user)):
     """Get current rate limit status for AI Coach."""

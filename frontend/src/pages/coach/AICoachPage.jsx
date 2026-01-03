@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { PageHeader } from '../../components/PageHeader';
-import { Sparkles, Send, MessageSquare, User, Bot, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, Send, MessageSquare, User, Bot, AlertCircle, Loader2, Edit2, Trash2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Typing effect component
@@ -68,6 +68,8 @@ export const AICoachPage = () => {
   const [isThinking, setIsThinking] = useState(false);
   const [typingMessageId, setTypingMessageId] = useState(null);
   const [localMessages, setLocalMessages] = useState([]);
+  const [editingConversationId, setEditingConversationId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
   const messagesEndRef = useRef(null);
 
   const { data: conversations } = useQuery({
@@ -101,6 +103,34 @@ export const AICoachPage = () => {
       setSelectedConversation(data.id);
       setLocalMessages([]);
       toast.success('Новый диалог создан!');
+    },
+  });
+
+  const updateConversationMutation = useMutation({
+    mutationFn: ({ conversationId, title }) => api.updateConversation(conversationId, { title }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['conversations']);
+      setEditingConversationId(null);
+      setEditTitle('');
+      toast.success('Название обновлено!');
+    },
+    onError: () => {
+      toast.error('Ошибка обновления');
+    },
+  });
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: (conversationId) => api.deleteConversation(conversationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['conversations']);
+      if (selectedConversation === editingConversationId) {
+        setSelectedConversation(null);
+        setLocalMessages([]);
+      }
+      toast.success('Диалог удалён!');
+    },
+    onError: () => {
+      toast.error('Ошибка удаления');
     },
   });
 
@@ -253,20 +283,83 @@ export const AICoachPage = () => {
                     conversations?.map((conv) => (
                       <div
                         key={conv.id}
-                        onClick={() => {
-                          setSelectedConversation(conv.id);
-                          setTypingMessageId(null);
-                        }}
-                        className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                        className={`p-3 rounded-lg transition-colors group ${
                           selectedConversation === conv.id
                             ? 'bg-violet-100 border-2 border-violet-600'
                             : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
                         }`}
                       >
-                        <div className="font-semibold text-sm text-gray-900">{conv.title}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {new Date(conv.created_at).toLocaleDateString('ru-RU')}
-                        </div>
+                        {editingConversationId === conv.id ? (
+                          // Режим редактирования
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              className="h-8 text-sm"
+                              autoFocus
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  updateConversationMutation.mutate({ conversationId: conv.id, title: editTitle });
+                                }
+                              }}
+                            />
+                            <button
+                              onClick={() => updateConversationMutation.mutate({ conversationId: conv.id, title: editTitle })}
+                              className="p-1 text-green-600 hover:bg-green-100 rounded"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => { setEditingConversationId(null); setEditTitle(''); }}
+                              className="p-1 text-gray-500 hover:bg-gray-200 rounded"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          // Обычный режим
+                          <div
+                            onClick={() => {
+                              setSelectedConversation(conv.id);
+                              setTypingMessageId(null);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="font-semibold text-sm text-gray-900 truncate flex-1">
+                                {conv.title}
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingConversationId(conv.id);
+                                    setEditTitle(conv.title);
+                                  }}
+                                  className="p-1 text-gray-500 hover:text-violet-600 hover:bg-violet-100 rounded"
+                                  title="Редактировать"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm('Удалить этот диалог?')) {
+                                      deleteConversationMutation.mutate(conv.id);
+                                    }
+                                  }}
+                                  className="p-1 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded"
+                                  title="Удалить"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {new Date(conv.created_at).toLocaleDateString('ru-RU')}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))
                   )}

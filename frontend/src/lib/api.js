@@ -202,6 +202,16 @@ class ApiClient {
     return response.data;
   }
 
+  async updateConversation(conversationId, data) {
+    const response = await this.client.put(`/coach/conversations/${conversationId}`, data);
+    return response.data;
+  }
+
+  async deleteConversation(conversationId) {
+    const response = await this.client.delete(`/coach/conversations/${conversationId}`);
+    return response.data;
+  }
+
   async getMessages(conversationId) {
     const response = await this.client.get(
       `/coach/conversations/${conversationId}/messages`
