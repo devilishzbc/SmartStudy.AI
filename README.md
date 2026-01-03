@@ -8,7 +8,7 @@ An intelligent study workload management system that helps students plan study s
 - **Task Management**: CRUD operations with priorities, dependencies, and deadlines
 - **ETA Prediction**: Machine learning-based task duration estimates
 - **Progress Analytics**: Burndown charts, completion rates, and insights
-- **AI Coach**: Claude Sonnet 4.5 powered study assistant
+- **AI Coach**: Groq API powered study assistant
 - **Availability Management**: Weekly patterns with exceptions
 - **Session Tracking**: Pomodoro-style study sessions
 
@@ -40,7 +40,7 @@ python seed.py
 
 ## 🧠 Technology Stack
 
-- **Backend**: FastAPI + MongoDB + OR-Tools + Claude Sonnet 4.5
+- **Backend**: FastAPI + MongoDB + OR-Tools + Groq API
 - **Frontend**: React + TypeScript + TanStack Query + Zustand + Recharts
 - **Design**: Electric Violet (#6D28D9) theme with Outfit & DM Sans fonts
 
